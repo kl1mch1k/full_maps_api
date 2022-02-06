@@ -3,26 +3,29 @@ import sys
 import time
 
 import requests
-from PyQt5 import QtCore
+from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel
+from ui_file import Ui_MainWindow
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QMainWindow
 
-SCREEN_SIZE = [600, 450]
-
-
-class Example(QWidget):
+class Example(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
+
+        ## Изображение
+        self.setupUi(self)
+        self.pixmap = QPixmap()
         self.map_locale = [37.530887, 55.703118]
-        self.map_scale = 15
+        self.map_scale = 0.001
         self.map_type = 'map'
+        self.comboBox.activated.connect(self.changeLayout)
         self.getImage()
-        self.initUI()
+        self.updateScreen()
 
     def getImage(self):
         params = {'ll': ','.join([str(i) for i in self.map_locale]),
-                  'z': str(self.map_scale),
+                  'spn': ','.join((str(self.map_scale),str(self.map_scale) )),
                   'l': self.map_type}
         map_server = "http://static-maps.yandex.ru/1.x/"
         response = requests.get(map_server, params=params)
@@ -38,36 +41,30 @@ class Example(QWidget):
         # with open(self.map_file, "wb") as file:
         #     file.write(response.content)
 
-    def initUI(self):
-        self.setGeometry(100, 100, *SCREEN_SIZE)
-        self.setWindowTitle('Отображение карты')
-
-        ## Изображение
-        self.pixmap = QPixmap()
-        self.image = QLabel(self)
-        self.image.move(0, 0)
-        self.image.resize(600, 450)
-        self.update_screen()
-
     def keyPressEvent(self, event):
-        if event.key() == QtCore.Qt.Key_PageUp and self.map_scale <= 16:
-            self.map_scale += 1
-        if event.key() == QtCore.Qt.Key_PageDown and self.map_scale >= 1:
-            self.map_scale -= 1
-        if event.key() == QtCore.Qt.Key_Up:
-            self.map_locale[1] += 1
-        if event.key() == QtCore.Qt.Key_Down:
-            self.map_locale[1] -= 1
-        if event.key() == QtCore.Qt.Key_Left:
-            self.map_locale[0] -= 1
-        if event.key() == QtCore.Qt.Key_Right:
-            self.map_locale[0] += 1
-        self.update_screen()
+        print(self.map_scale)
+        if event.key() == QtCore.Qt.Key_PageUp and self.map_scale * 2 < 90:
+            self.map_scale *= 2
+        if event.key() == QtCore.Qt.Key_PageDown:
+            self.map_scale /= 2
+        if event.key() == QtCore.Qt.Key_Up and self.map_locale[1] + self.map_scale < 85:
+            self.map_locale[1] += self.map_scale
+        if event.key() == QtCore.Qt.Key_Down and self.map_locale[1] - self.map_scale > -85:
+            self.map_locale[1] -= self.map_scale
+        if event.key() == QtCore.Qt.Key_Left and self.map_locale[0] - self.map_scale > -180 :
+            self.map_locale[0] -= self.map_scale
+        if event.key() == QtCore.Qt.Key_Right and self.map_locale[0] + self.map_scale < 180:
+            self.map_locale[0] += self.map_scale
+        self.updateScreen()
 
-    def update_screen(self):
+    def updateScreen(self):
         self.getImage()
         self.pixmap.loadFromData(self.map_bytes)
         self.image.setPixmap(self.pixmap)
+
+    def changeLayout(self):
+        self.map_type = {'Схема':'map', 'Спутник': 'sat', 'Гибрид': 'sat,skl'}[self.comboBox.currentText()]
+        self.updateScreen()
 
     # def closeEvent(self, event):
     #     self.running = False
